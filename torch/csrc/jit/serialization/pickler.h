@@ -296,11 +296,15 @@ uint64_t getStorageKey(const at::Tensor& tensor);
 // otherwise return false
 bool checkHasValidSetGetState(const std::shared_ptr<c10::ClassType>& cls);
 
+// Declare BackendMeta serialization and deserialization function pointer types.
+using BackendMetaPtr =
+    void (*)(const at::Tensor&, std::unordered_map<std::string, bool>&);
+
 // Register function pointer of Tensor BackendMetadata for serialization.
 TORCH_API void TensorBackendMetaRegistry(
     c10::DeviceType t,
-    void* get_fptr,
-    void* set_fptr);
+    BackendMetaPtr get_fptr,
+    BackendMetaPtr set_fptr);
 
 // Return a map of Tensor Metadata which including BackendMetaData for
 // serialization. For now, it only takes care of `conj` and `neg` bit.

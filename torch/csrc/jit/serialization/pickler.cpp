@@ -801,26 +801,40 @@ bool checkHasValidSetGetState(const std::shared_ptr<c10::ClassType>& cls) {
   return true;
 }
 
-// Declare BackendMeta serialization and deserialization function pointer types.
-using BackendMetaPtr =
-    void (*)(const at::Tensor&, std::unordered_map<std::string, bool>&);
-
 // map to save function pointer for BackendMeta serialization.
 // key is the DeviceType, value is std::pair obj.
 // value.first represent get function and value.seconde represent set function
-static std::unordered_map<int, std::pair<void*, void*>> serialization_map;
+static std::array<c10::optional<std::pair<BackendMetaPtr, BackendMetaPtr>>, at::COMPILE_TIME_MAX_DEVICE_TYPES> BackendMetaSerialization;
 
 // Register function pointer of Tensor BackendMetadata for serialization.
 void TensorBackendMetaRegistry(
     c10::DeviceType t,
-    void* get_fptr,
-    void* set_fptr) {
-  TORCH_CHECK(
-      serialization_map.find(static_cast<int>(t)) == serialization_map.end(),
-      "The tensor BackendMeta serialization function pointer for ",
-      t,
-      "has been registered.");
-  serialization_map[static_cast<int>(t)] = std::make_pair(get_fptr, set_fptr);
+    BackendMetaPtr get_fptr,
+    BackendMetaPtr set_fptr) {
+  // Blacklist verification, for the following-device types,
+  // we do not allow the extended serialization method of backendmeta data to be registered
+  if (t == c10::DeviceType::CPU) {
+    TORCH_CHECK(
+        false,
+        "It is not allowed to register the serialization method ",
+        "of backendMeta data for",
+        t);
+  } else if (t == c10::DeviceType::CUDA) {
+    TORCH_CHECK(
+        false,
+        "It is not allowed to register the serialization method ",
+        "of backendMeta data for",
+        t);
+  } else {
+    int device_type = static_cast<int>(t);
+    TORCH_CHECK(
+        !BackendMetaSerialization[device_type].has_value(),
+        "The tensor BackendMeta serialization function pointer for ",
+        t,
+        "has been registered.");
+    BackendMetaSerialization[device_type] = c10::optional<std::pair<BackendMetaPtr, BackendMetaPtr>>(std::make_pair(get_fptr, set_fptr));
+  }
+  
 }
 
 // Return a map of Tensor Metadata which including BackendMetaData for
@@ -844,11 +858,11 @@ std::unordered_map<std::string, bool> getTensorMetadata(const at::Tensor& t) {
   // Only add BackendMetaData for custom backend if the function pointer is
   // registered.
   int device_type = static_cast<int>(t.device().type());
-  if (serialization_map.find(device_type) != serialization_map.end()) {
+  if (BackendMetaSerialization[device_type].has_value()) {
     // Pass the tensor and metadata map references as parameters to the custom
     // serialization function.
-    void* fptr = serialization_map[device_type].first;
-    ((BackendMetaPtr)fptr)(t, metadata);
+    BackendMetaPtr fptr = BackendMetaSerialization[device_type].value().first;
+    fptr(t, metadata);
   }
   return metadata;
 }
@@ -870,11 +884,11 @@ void setTensorMetadata(
   // Only set BackendMetaData for custom backend if the function pointer is
   // registered.
   int device_type = static_cast<int>(t.device().type());
-  if (serialization_map.find(device_type) != serialization_map.end()) {
+  if (BackendMetaSerialization[device_type].has_value()) {
     // Pass the tensor and metadata map references as parameters to the custom
     // deserialization function.
-    void* fptr = serialization_map[device_type].second;
-    ((BackendMetaPtr)fptr)(t, metadata);
+    BackendMetaPtr fptr = BackendMetaSerialization[device_type].value().second;
+    fptr(t, metadata);
   }
 }
 

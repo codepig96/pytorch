@@ -66,7 +66,7 @@ void for_deserialization(const at::Tensor& t, std::unordered_map<std::string, bo
 }
 
 void custom_serialization_registry(){
-torch::jit::TensorBackendMetaRegistry(c10::DeviceType::PrivateUse1, (void*)&for_serialization, (void*)&for_deserialization);
+torch::jit::TensorBackendMetaRegistry(c10::DeviceType::PrivateUse1, &for_serialization, &for_deserialization);
 }
 
 //check if BackendMeta serialization correctly
