@@ -801,7 +801,7 @@ bool checkHasValidSetGetState(const std::shared_ptr<c10::ClassType>& cls) {
   return true;
 }
 
-// map to save function pointer for BackendMeta serialization.
+// The array to save function pointer for BackendMeta serialization.
 // key is the DeviceType, value is std::pair obj.
 // value.first represent get function and value.seconde represent set function
 static std::array<
@@ -809,37 +809,34 @@ static std::array<
     at::COMPILE_TIME_MAX_DEVICE_TYPES>
     BackendMetaSerialization;
 
+// A whitelist of device type, currently available is PrivateUse1
+static std::unordered_set<c10::DeviceType> DeviceTypeWhitelist{
+    c10::DeviceType::PrivateUse1};
+
 // Register function pointer of Tensor BackendMetadata for serialization.
 void TensorBackendMetaRegistry(
     c10::DeviceType t,
     BackendMetaPtr get_fptr,
     BackendMetaPtr set_fptr) {
-  // Blacklist verification, for the following-device types,
-  // we do not allow the extended serialization method of backendmeta data to be
-  // registered
-  if (t == c10::DeviceType::CPU) {
-    TORCH_CHECK(
-        false,
-        "It is not allowed to register the serialization method ",
-        "of backendMeta data for",
-        t);
-  } else if (t == c10::DeviceType::CUDA) {
-    TORCH_CHECK(
-        false,
-        "It is not allowed to register the serialization method ",
-        "of backendMeta data for",
-        t);
-  } else {
-    int device_type = static_cast<int>(t);
-    TORCH_CHECK(
-        !BackendMetaSerialization[device_type].has_value(),
-        "The tensor BackendMeta serialization function pointer for ",
-        t,
-        "has been registered.");
-    BackendMetaSerialization[device_type] =
-        c10::optional<std::pair<BackendMetaPtr, BackendMetaPtr>>(
-            std::make_pair(get_fptr, set_fptr));
-  }
+  // Whitelist verification
+  // Only if the devicetype is in the whitelist,
+  // we allow the serialization extension to be registered for backendmeta data.
+  TORCH_CHECK(
+      DeviceTypeWhitelist.find(t) != DeviceTypeWhitelist.end(),
+      "It is not allowed to register the serialization method ",
+      "of backendMeta data for PrivateUse1. ",
+      "If you have related serialization requirements, ",
+      "please expand the whitelist");
+  // Register function pointer
+  int device_type = static_cast<int>(t);
+  TORCH_CHECK(
+      !BackendMetaSerialization[device_type].has_value(),
+      "The tensor BackendMeta serialization function pointer for ",
+      t,
+      "has been registered.");
+  BackendMetaSerialization[device_type] =
+      c10::optional<std::pair<BackendMetaPtr, BackendMetaPtr>>(
+          std::make_pair(get_fptr, set_fptr));
 }
 
 // Return a map of Tensor Metadata which including BackendMetaData for
