@@ -804,7 +804,10 @@ bool checkHasValidSetGetState(const std::shared_ptr<c10::ClassType>& cls) {
 // map to save function pointer for BackendMeta serialization.
 // key is the DeviceType, value is std::pair obj.
 // value.first represent get function and value.seconde represent set function
-static std::array<c10::optional<std::pair<BackendMetaPtr, BackendMetaPtr>>, at::COMPILE_TIME_MAX_DEVICE_TYPES> BackendMetaSerialization;
+static std::array<
+    c10::optional<std::pair<BackendMetaPtr, BackendMetaPtr>>,
+    at::COMPILE_TIME_MAX_DEVICE_TYPES>
+    BackendMetaSerialization;
 
 // Register function pointer of Tensor BackendMetadata for serialization.
 void TensorBackendMetaRegistry(
@@ -812,7 +815,8 @@ void TensorBackendMetaRegistry(
     BackendMetaPtr get_fptr,
     BackendMetaPtr set_fptr) {
   // Blacklist verification, for the following-device types,
-  // we do not allow the extended serialization method of backendmeta data to be registered
+  // we do not allow the extended serialization method of backendmeta data to be
+  // registered
   if (t == c10::DeviceType::CPU) {
     TORCH_CHECK(
         false,
@@ -832,9 +836,10 @@ void TensorBackendMetaRegistry(
         "The tensor BackendMeta serialization function pointer for ",
         t,
         "has been registered.");
-    BackendMetaSerialization[device_type] = c10::optional<std::pair<BackendMetaPtr, BackendMetaPtr>>(std::make_pair(get_fptr, set_fptr));
+    BackendMetaSerialization[device_type] =
+        c10::optional<std::pair<BackendMetaPtr, BackendMetaPtr>>(
+            std::make_pair(get_fptr, set_fptr));
   }
-  
 }
 
 // Return a map of Tensor Metadata which including BackendMetaData for
