@@ -642,7 +642,6 @@ class OutputGraph(Checkpointable[OutputGraphState]):
         tx.prune_dead_locals()
         stack_values = list(tx.stack)
         root = FakeRootModule(self.nn_modules)
-
         # Add all the local vars to the "stack" so restore at the end
         restore_vars = []
         val_to_names: OrderedDict[
