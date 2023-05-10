@@ -6,6 +6,7 @@ import itertools
 import logging
 import math
 import operator
+import colorama
 from typing import Dict, Iterable, List, Set
 
 import sympy
@@ -1921,8 +1922,36 @@ class TritonScheduling:
 
         src_code = kernel.codegen_kernel()
         kernel_name = self.define_kernel(src_code, node_schedule)
-
         kernel.call_kernel(V.graph.wrapper_code, kernel_name)
+
+        def verify_uniform_layouts():
+            if len(kernel.args.input_buffers) == 1 and len(kernel.args.output_buffers) == 1 and len(kernel.args.inplace_buffers) == 0:
+                print(colorama.Fore.GREEN + "SKIP POTENTIAL LAYOUT CONVERTION KERNEL" + colorama.Fore.RESET)
+                return
+
+            argdefs, call_args, signature = kernel.args.python_argdefs()
+            uniform_stride_order = None
+            for arg_name in call_args:
+                buf = V.graph.get_buffer(arg_name)
+                if buf and len(buf.layout.size) == 4:
+                    if len([x for x in buf.layout.size if x == 1]) == 3:
+                        continue # broadcasted
+                    stride_order = ir.get_stride_order(buf.layout.stride)
+                    if uniform_stride_order is None:
+                        uniform_stride_order = stride_order
+                    elif uniform_stride_order != stride_order:
+                        print(colorama.Fore.RED + f"Expected stride order {uniform_stride_order}, found stride order {stride_order}" + colorama.Fore.RESET)
+                        stride_order_list = [ ir.get_stride_order(V.graph.get_buffer(name).layout.stride) if V.graph.get_buffer(name) else None for name in call_args]
+                        size_list = [ V.graph.get_buffer(name).layout.size if V.graph.get_buffer(name) else None for name in call_args]
+                        source_list = [ "GraphInput" if name in V.graph.graph_inputs else "IntermBuf" if name in V.graph.name_to_buffer else None for name in call_args ]
+
+                        print(colorama.Fore.RED + f"\n  param names {argdefs}\n  buf names {call_args}\n  strides {stride_order_list}\n  sizes {size_list}\n  sources {source_list}" + colorama.Fore.RESET)
+                        # breakpiont() # TODO
+                        return
+            print(colorama.Fore.GREEN + "PASS UNIFORM LAYOUT CHECK FOR ONE TRITON KERNEL" + colorama.Fore.RESET)
+   
+        if config.verify_uniform_layouts:
+            verify_uniform_layouts()
 
         if (
             V.graph.wrapper_code.supports_intermediate_hooks
@@ -1931,6 +1960,7 @@ class TritonScheduling:
             # Not every node in the schedule will actually be live on output;
             # we can't check dead buffers.
             live_outs = kernel.args.live_output_buffers()
+
             for node in node_schedule:
                 if not isinstance(node, scheduler.BaseSchedulerNode):
                     continue
