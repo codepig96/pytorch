@@ -4,7 +4,6 @@ import dataclasses
 import functools
 import itertools
 import logging
-import re
 import textwrap
 import traceback
 from contextlib import nullcontext
@@ -3112,6 +3111,8 @@ class FallbackKernel(ExternKernelAlloc):
             tuple(tensor_args),
             tuple(nontensor_args),
         )
+        self.use_cpp_op_schema = False
+
         if getattr(torch.ops.aten, kernel.__name__, None) is kernel:
             self.kernel = (
                 f"at::{kernel.__name__}"
@@ -3119,15 +3120,48 @@ class FallbackKernel(ExternKernelAlloc):
                 else f"aten.{kernel.__name__}"
             )
         else:
-            assert (
-                not V.graph.cpp_wrapper
-            ), f"{kernel.__name__} is not supported with cpp wrapper"
-            self.kernel = (
-                f"{kernel.__module__.replace('._ops.', '.ops.')}.{kernel.__name__}"
-            )
+            if V.graph.cpp_wrapper:
+                from torch._inductor.codegen.wrapper import (
+                    SUPPORTED_FALLBACK_CPP_WRAPPER,
+                )
+
+                assert (
+                    kernel.__name__ in SUPPORTED_FALLBACK_CPP_WRAPPER
+                ), f"{kernel.__name__} is not supported with cpp wrapper"
+                self.use_cpp_op_schema = True
+                self.set_cpp_kernel(kernel)
+            else:
+                self.kernel = (
+                    f"{kernel.__module__.replace('._ops.', '.ops.')}.{kernel.__name__}"
+                )
         self.unflatten_args = unflatten_args
         self.kwargs = {} if kwargs is None else kwargs
         V.graph.warn_fallback(self.kernel)
+
+    def set_cpp_kernel(self, kernel):
+        from .codegen.wrapper import get_cpp_op_schema
+
+        assert (
+            not kernel._schema.is_mutable
+        ), f"mutable {kernel.__name__} is not supported with cpp_wrapper"
+        assert all(
+            x.alias_info is None for x in kernel._schema.arguments
+        ), f"{kernel.__name__} with alias_info arguments is not supported with cpp_wrapper"
+        assert all(
+            x.alias_info is None for x in kernel._schema.returns
+        ), f"{kernel.__name__} with alias_info returns is not supported with cpp_wrapper"
+
+        self.kernel = kernel._schema.name
+        self.cpp_kernel_overlad_name = kernel._schema.overload_name
+        self.cpp_kernel_key = (
+            f"{self.kernel.replace('::', '_')}_{self.cpp_kernel_overlad_name}"
+        )
+
+        self.cpp_op_schema = get_cpp_op_schema(kernel)
+        self.cpp_op_num_args = len(kernel._schema.arguments)
+        self.ordered_kwargs_for_cpp_kernel = [
+            x.name for x in kernel._schema.arguments if x.kwarg_only
+        ]
 
     def codegen_args(self):
         @dataclasses.dataclass
@@ -3143,6 +3177,20 @@ class FallbackKernel(ExternKernelAlloc):
         # let self.codegen_kwargs handle kwargs
         self.kwargs.update(kwargs)
         return args
+
+    def codegen(self, wrapper):
+        if self.use_cpp_op_schema:
+            args = [*self.codegen_args(), *self.codegen_kwargs()]
+            wrapper.generate_fusion_ops_code(
+                self.get_name(),
+                self.kernel,
+                args,
+                self.cpp_op_schema,
+                self.cpp_kernel_key,
+                self.cpp_kernel_overlad_name,
+            )
+        else:
+            super().codegen(wrapper)
 
     @classmethod
     def create(cls, kernel, *args, **kwargs):
