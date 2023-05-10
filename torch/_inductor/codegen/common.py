@@ -301,6 +301,10 @@ class OpOverrides:
         r = ops.mod(a, b)
         return ops.where(f"(({r} != 0) & (({r} < 0) != ({b} < 0)))", ops.add(r, b), r)
 
+    @staticmethod
+    def load_seed(name, offset):
+        return ops.load(name, sympy.Integer(offset))
+
 
 class DeferredLine(DeferredLineBase):
     """A line that can be 'unwritten' by adding name to V.graph.removed_buffers"""

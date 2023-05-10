@@ -461,6 +461,49 @@ def native_dropout(input: Tensor, p: float, train: bool):
     return NotImplemented
 
 
+@register_decomposition(aten.rand_like)
+def rand_like(self, *, dtype=None, device=None, **kwargs):
+    return torch.rand(
+        self.size(), dtype=dtype or self.dtype, device=device or self.device, **kwargs
+    )
+
+
+@register_decomposition(aten.randn_like)
+def randn_like(self, *, dtype=None, device=None, **kwargs):
+    return torch.randn(
+        self.size(), dtype=dtype or self.dtype, device=device or self.device, **kwargs
+    )
+
+
+@register_decomposition(aten.randint_like.default)
+def randint_like(self, high, *, dtype=None, device=None, **kwargs):
+    return aten.randint.low(
+        0,
+        high,
+        self.size(),
+        dtype=dtype or self.dtype,
+        device=device or self.device,
+        **kwargs,
+    )
+
+
+@register_decomposition(aten.randint_like.low_dtype)
+def randint_like_low(self, low, high, *, dtype=None, device=None, **kwargs):
+    return aten.randint.low(
+        low,
+        high,
+        self.size(),
+        dtype=dtype or self.dtype,
+        device=device or self.device,
+        **kwargs,
+    )
+
+
+@register_decomposition(aten.randint.default)
+def randint(high, size, **kwargs):
+    return aten.randint.low(0, high, size, **kwargs)
+
+
 # The difference between quantize_per_tensor.default and quantize_per_tensor.tensor is
 # scale and zero_point is scalar or scalar tensor
 @register_decomposition(quantized_decomposed.quantize_per_tensor.default)

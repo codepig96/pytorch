@@ -22,7 +22,7 @@ class TestSDPAPatternRewriter(TestCase):
 
         return tuple(clone(x) for x in inputs)
 
-    @config.patch(fallback_random=True, lowmem_dropout=False)
+    @config.patch(fallback_random=True)
     def _check_common(
         self,
         dot_prod_attention,
@@ -83,7 +83,7 @@ class TestSDPAPatternRewriter(TestCase):
 
         self._check_common(dot_prod_attention)
 
-    @config.patch(fallback_random=True, lowmem_dropout=False)
+    @config.patch(fallback_random=True)
     def test_pattern_fails_with_reuse(self):
         """
         This test checks that the replacement is not done
@@ -194,7 +194,7 @@ class TestSDPAPatternRewriter(TestCase):
 
         self._check_common(sfdp_pattern_6, contains=False)
 
-    @config.patch(fallback_random=True, lowmem_dropout=False)
+    @config.patch(fallback_random=True)
     def test_pattern_fails_with_tensor_factor(self):
         # https://github.com/pytorch/pytorch/issues/99124
         class Model(torch.nn.Module):
