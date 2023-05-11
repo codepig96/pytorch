@@ -11,8 +11,7 @@ ARG BASE_IMAGE=ubuntu:18.04
 ARG PYTHON_VERSION=3.8
 
 FROM ${BASE_IMAGE} as dev-base
-RUN --mount=type=cache,id=apt-dev,target=/var/cache/apt \
-    apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         ca-certificates \
         ccache \
@@ -44,8 +43,7 @@ FROM conda as build
 WORKDIR /opt/pytorch
 COPY --from=conda /opt/conda /opt/conda
 COPY --from=submodule-update /opt/pytorch /opt/pytorch
-RUN --mount=type=cache,target=/opt/ccache \
-    TORCH_CUDA_ARCH_LIST="3.5 5.2 6.0 6.1 7.0+PTX 8.0" TORCH_NVCC_FLAGS="-Xfatbin -compress-all" \
+RUN TORCH_CUDA_ARCH_LIST="3.5 5.2 6.0 6.1 7.0+PTX 8.0" TORCH_NVCC_FLAGS="-Xfatbin -compress-all" \
     CMAKE_PREFIX_PATH="$(dirname $(which conda))/../" \
     python setup.py install
 
@@ -62,8 +60,7 @@ RUN /opt/conda/bin/pip install torchelastic
 FROM ${BASE_IMAGE} as official
 ARG PYTORCH_VERSION
 LABEL com.nvidia.volumes.needed="nvidia_driver"
-RUN --mount=type=cache,id=apt-final,target=/var/cache/apt \
-    apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         libjpeg-dev \
         libpng-dev && \
