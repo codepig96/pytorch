@@ -31,7 +31,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 2400
     strategy:
       matrix:
         include:
