@@ -22,7 +22,6 @@ hf_GPT2,pass,0
 hf_Reformer,pass,26
 hf_T5_large,pass_due_to_skip,0
 lennard_jones,pass,0
-llama,pass,0
 maml_omniglot,pass,0
 mnasnet1_0,pass,0
 mobilenet_v2,pass,0
@@ -51,4 +50,5 @@ timm_vision_transformer_large,pass_due_to_skip,0
 timm_vovnet,pass,0
 tts_angular,pass,1
 vgg16,pass,0
+vision_maskrcnn,infra_error,0
 yolov3,pass,1
