@@ -57,15 +57,15 @@ RUN TORCH_CUDA_ARCH_LIST="3.5 5.2 6.0 6.1 7.0+PTX 8.0" TORCH_NVCC_FLAGS="-Xfatbi
     CMAKE_PREFIX_PATH="$(dirname $(which conda))/../" \
     python setup.py install
 
-FROM conda as conda-installs
-ARG PYTHON_VERSION=3.8
-ARG CUDA_VERSION=11.3
-ARG CUDA_CHANNEL=nvidia
-ARG INSTALL_CHANNEL=pytorch-nightly
-ENV CONDA_OVERRIDE_CUDA=${CUDA_VERSION}
-RUN /opt/conda/bin/conda install -c "${INSTALL_CHANNEL}" -c "${CUDA_CHANNEL}" -y python=${PYTHON_VERSION} pytorch torchvision torchtext "cudatoolkit=${CUDA_VERSION}" && \
+#FROM conda as conda-installs
+#ARG PYTHON_VERSION=3.8
+#ARG CUDA_VERSION=11.3
+#ARG CUDA_CHANNEL=nvidia
+#ARG INSTALL_CHANNEL=pytorch-nightly
+#ENV CONDA_OVERRIDE_CUDA=${CUDA_VERSION}
+#RUN /opt/conda/bin/conda install -c "${INSTALL_CHANNEL}" -c "${CUDA_CHANNEL}" -y python=${PYTHON_VERSION} pytorch torchvision torchtext "cudatoolkit=${CUDA_VERSION}" && \
     /opt/conda/bin/conda clean -ya
-RUN /opt/conda/bin/pip install torchelastic
+#RUN /opt/conda/bin/pip install torchelastic
 
 FROM ${BASE_IMAGE} as official
 ARG PYTORCH_VERSION
@@ -75,7 +75,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libjpeg-dev \
         libpng-dev && \
     rm -rf /var/lib/apt/lists/*
-COPY --from=conda-installs /opt/conda /opt/conda
+#COPY --from=conda-installs /opt/conda /opt/conda
 ENV PATH /opt/conda/bin:$PATH
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
