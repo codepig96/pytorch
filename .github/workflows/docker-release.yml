@@ -53,8 +53,8 @@ jobs:
         with:
           fetch-depth: 0
           submodules: 'recursive'
-      - name: Setup Linux
-        uses: ./.github/actions/setup-linux
+      #- name: Setup Linux
+      #  uses: ./.github/actions/setup-linux
       - name: Login to GitHub Container Registry
         if: ${{ env.WITH_PUSH == 'true' }}
         uses: docker/login-action@v2
