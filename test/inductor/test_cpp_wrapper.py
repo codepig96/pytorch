@@ -90,6 +90,12 @@ if RUN_CPU:
         BaseTest("test_cat"),  # alias
         BaseTest("test_embedding_bag"),  # test default FallbackKernel
         BaseTest(
+            "test_conv2d_binary",
+            "",
+            test_mkldnn_pattern_matcher.TestPaternMatcher(),
+            True,
+        ),
+        BaseTest(
             "test_conv2d_unary",
             "",
             test_mkldnn_pattern_matcher.TestPaternMatcher(),
