@@ -31,14 +31,12 @@ env:
 jobs:
   build:
     if: ${{ github.repository == 'pytorch/pytorch' }}
-    runs-on: [self-hosted, linux.2xlarge]
+    runs-on: ubuntu-latest
     timeout-minutes: 240
     strategy:
       matrix:
         include:
           # nvidia specific images don't exist for arm64 so only build the runtime image
-          - image_type: runtime
-            platform: linux/arm64,linux/amd64
           - image_type: devel
             platform: linux/amd64
     env:
@@ -62,9 +60,9 @@ jobs:
         if: ${{ env.WITH_PUSH == 'true' }}
         uses: docker/login-action@v2
         with:
-          registry: ghcr.io
-          username: pytorch
-          password: ${{ secrets.GHCR_PAT }}
+          registry: docker.io
+          username: daweisilll
+          password: ${{ secrets.DOCKER_HUB }}
       # Setup multi-arch image builds
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -93,20 +91,13 @@ jobs:
         # WITH_PUSH is used here to determine whether or not to add the --push flag
         run: |
           make -f docker.Makefile "${BUILD_IMAGE_TYPE}-image"
-      - name: Push nightly tags
-        if: ${{ github.event.ref == 'refs/heads/nightly' && matrix.image_type == 'runtime' }}
+      - name: Push image
         run: |
-          PYTORCH_DOCKER_TAG="${PYTORCH_VERSION}-runtime"
+          PYTORCH_DOCKER_TAG="${PYTORCH_VERSION}-devel"
           CUDA_VERSION=$(python3 -c "import re;print(re.search('CUDA_VERSION\s+=\s+([0-9\.]+)',open('docker.Makefile').read())[1],end='')")
-          PYTORCH_NIGHTLY_COMMIT=$(docker run ghcr.io/pytorch/pytorch-nightly:"${PYTORCH_DOCKER_TAG}" \
-                                          python -c 'import torch; print(torch.version.git_version[:7],end="")')
-          docker tag ghcr.io/pytorch/pytorch-nightly:"${PYTORCH_DOCKER_TAG}" \
-                 ghcr.io/pytorch/pytorch-nightly:"${PYTORCH_NIGHTLY_COMMIT}-cu${CUDA_VERSION}"
-          docker push ghcr.io/pytorch/pytorch-nightly:"${PYTORCH_NIGHTLY_COMMIT}-cu${CUDA_VERSION}"
-
-          docker tag ghcr.io/pytorch/pytorch-nightly:"${PYTORCH_NIGHTLY_COMMIT}-cu${CUDA_VERSION}" \
-                 ghcr.io/pytorch/pytorch-nightly:latest
-          docker push ghcr.io/pytorch/pytorch-nightly:latest
+          docker tag docker.io/pytorch/pytorch-build:"${PYTORCH_DOCKER_TAG}" \
+                 daweisilll/pytorch:"${PYTORCH_DOCKER_TAG}-cu${CUDA_VERSION}"
+          docker push daweisilll/pytorch:"${PYTORCH_DOCKER_TAG}-cu${CUDA_VERSION}"
       - name: Teardown Linux
         uses: pytorch/test-infra/.github/actions/teardown-linux@main
         if: always()
